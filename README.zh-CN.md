@@ -50,8 +50,8 @@
 | :--- | :--- |
 | `.inp` | 语法高亮、自动补全、悬停提示（含 0-based 原子序号）、代码片段、实时诊断、大纲、3D 预览 |
 | `.out`, `.orcaout`, `.log` | 自动识别 ORCA 输出高亮、大纲目录、任务摘要、3D 优化轨迹、收敛图、轨道、电荷、频率与振动动画、IR / UV-Vis 光谱、热力学 |
-| `.xyz`, `*_trj.xyz` | 单帧与多帧 3D 轨迹播放、自动提取 ORCA 注释行能量并绘制能量曲线 |
-| `.hess` | 几何结构（自动 Bohr → Å 换算）、振动频率、3D 简正振动动画、模拟 IR 光谱 |
+| `.xyz`, `*_trj.xyz`, `.trj`, `.allxyz` | 单帧与多帧 3D 轨迹播放（含 ORCA Scan `.allxyz`、NEB/IRC 轨迹）、自动提取能量绘制曲线、快捷键控制（`Space` / `←` / `→`） |
+| `.hess` | 几何结构（自动 Bohr → Å 换算）、振动频率、3D 简正振动动画（`◀`/`▶` 模式切换、矢量箭头、导出 20 帧动画 `.xyz`）、模拟 IR 光谱 |
 | `.engrad` | 几何结构（自动 Bohr → Å 换算）、总能量、3D 核梯度矢量箭头 |
 
 ---
@@ -68,6 +68,7 @@
 
 | 配置项 | 默认值 | 说明 |
 | :--- | :--- | :--- |
+| `orcaHelper.autoDetectInputLanguage` | `true` | 打开包含 ORCA 语法的 `.inp` 文件时自动切换为 ORCA Input（与 Packmol 等其他 `.inp` 插件和平共存）。 |
 | `orcaHelper.autoDetectOutputLanguage` | `true` | 打开包含 ORCA 文件头的 `.out`/`.log` 时自动启用 ORCA Output 语法高亮。 |
 | `orcaHelper.defaultRepresentation` | `"ballstick"` | 3D 视图默认显示模式（`ballstick`、`stick`、`sphere`、`line`）。 |
 | `orcaHelper.showGhostAtoms` | `true` | 默认以半透明标记显示 BSSE 幽灵原子。 |

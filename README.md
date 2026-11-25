@@ -50,8 +50,8 @@ Supports `.inp`, `.out` / `.orcaout` / `.log` (auto-detected via ORCA header), `
 | :--- | :--- |
 | `.inp` | Syntax highlighting, completions, hover (0-based atom index), snippets, real-time diagnostics, outline, 3D geometry preview |
 | `.out`, `.orcaout`, `.log` | Auto-detected ORCA output highlighting, TOC outline, job summary, 3D trajectory, convergence plots, MOs, charges, frequencies/animations, IR, UV-Vis, thermochemistry |
-| `.xyz`, `*_trj.xyz` | Single- and multi-frame 3D playback, automatic energy extraction from ORCA trajectory comments, energy curve |
-| `.hess` | Geometry (auto-converted Bohr → Å), vibrational frequencies, 3D normal-mode animations, simulated IR spectrum |
+| `.xyz`, `*_trj.xyz`, `.trj`, `.allxyz` | Single- and multi-frame 3D trajectory playback (including ORCA scan `.allxyz`, NEB/IRC trajectories), energy curve, keyboard controls (`Space`, `←`/`→`) |
+| `.hess` | Geometry (auto-converted Bohr → Å), vibrational frequencies, 3D normal-mode animations (`◀`/`▶` mode stepper, vector arrows, 20-frame XYZ export), simulated IR spectrum |
 | `.engrad` | Geometry (auto-converted Bohr → Å), total energy, 3D nuclear gradient vector arrows |
 
 ---
@@ -69,6 +69,7 @@ Supports `.inp`, `.out` / `.orcaout` / `.log` (auto-detected via ORCA header), `
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
+| `orcaHelper.autoDetectInputLanguage` | `true` | Automatically switch `.inp` files containing ORCA syntax to ORCA Input (coexists cleanly with Packmol / other `.inp` extensions). |
 | `orcaHelper.autoDetectOutputLanguage` | `true` | Automatically apply ORCA Output highlighting to `.out`/`.log` files containing an ORCA header. |
 | `orcaHelper.defaultRepresentation` | `"ballstick"` | Default 3D representation (`ballstick`, `stick`, `sphere`, `line`). |
 | `orcaHelper.showGhostAtoms` | `true` | Show BSSE ghost atoms as translucent markers by default. |

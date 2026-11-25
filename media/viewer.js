@@ -5,6 +5,8 @@
   const HARTREE_TO_KJ = 2625.499638;
 
   let data = null;
+  let lastLoadedFilePath = null;
+  let relatedFiles = [];
   let config = {
     defaultRepresentation: 'ballstick',
     showGhostAtoms: true,
@@ -343,8 +345,10 @@
     }
     viewer.render();
 
-    updateTrajectoryUI();
-    updateActiveCycleConvergence();
+    if (!customAtoms) {
+      updateTrajectoryUI();
+      updateActiveCycleConvergence();
+    }
   }
 
   // ---- Geometry measurement math ----
@@ -513,6 +517,9 @@
   function startPlayback() {
     if (!data || data.frames.length <= 1) return;
     stopVibration();
+    if (currentFrameIdx >= data.frames.length - 1) {
+      renderFrame(0, true);
+    }
     isPlaying = true;
     const btn = $('btn-play');
     if (btn) btn.textContent = '⏸ Pause';
@@ -562,6 +569,26 @@
   }
 
   // ---- Vibrational mode animation ----
+  function getAnimatableModes() {
+    if (!data || !data.frequencies) return [];
+    const list = data.frequencies.filter((f) => f.displacements && f.displacements.length > 0);
+    const filtered = hideTransRot ? list.filter((f) => Math.abs(f.frequency) > 1.0) : list;
+    return filtered.length > 0 ? filtered : list;
+  }
+
+  function stepVibration(delta) {
+    const modes = getAnimatableModes();
+    if (modes.length === 0) return;
+    if (!activeVibMode) {
+      const firstImag = modes.find((m) => m.isImaginary);
+      startVibration(firstImag || modes[0]);
+      return;
+    }
+    const idx = modes.findIndex((m) => m.mode === activeVibMode.mode);
+    const nextIdx = idx < 0 ? 0 : (idx + delta + modes.length) % modes.length;
+    startVibration(modes[nextIdx]);
+  }
+
   function stopVibration() {
     if (vibAnimFrame) {
       cancelAnimationFrame(vibAnimFrame);
@@ -570,6 +597,7 @@
     const wasActive = activeVibMode !== null;
     activeVibMode = null;
     $('vib-bar')?.classList.add('hidden');
+    $('btn-vibrate-quick')?.classList.remove('active');
     document.querySelectorAll('.freq-row.selected-row').forEach((el) => el.classList.remove('selected-row'));
     if (wasActive && data && data.frames.length > 0) {
       renderFrame(currentFrameIdx, true);
@@ -586,6 +614,7 @@
       vibAnimFrame = null;
     }
     activeVibMode = mode;
+    $('btn-vibrate-quick')?.classList.add('active');
     // Switch to final geometry for frequency animation
     currentFrameIdx = data.frames.length - 1;
     const baseAtoms = data.frames[currentFrameIdx].atoms;
@@ -597,9 +626,15 @@
       vibBar.classList.remove('hidden');
     }
 
-    // Highlight table row
+    // Highlight table row and scroll into view
     document.querySelectorAll('.freq-row').forEach((el) => {
-      el.classList.toggle('selected-row', Number(el.dataset.mode) === mode.mode);
+      const isSelected = Number(el.dataset.mode) === mode.mode;
+      el.classList.toggle('selected-row', isSelected);
+      if (isSelected) {
+        try {
+          el.scrollIntoView({ block: 'nearest' });
+        } catch (_) {}
+      }
     });
 
     // Normalize displacement scale so max atom moves by vibAmplitude
@@ -1322,11 +1357,49 @@
     }
   }
 
+  function renderRelatedBar() {
+    const bar = $('related-bar');
+    if (!bar) return;
+    if (!relatedFiles || relatedFiles.length === 0) {
+      bar.classList.add('hidden');
+      bar.innerHTML = '';
+      return;
+    }
+    bar.classList.remove('hidden');
+    const iconFor = (kind) =>
+      kind === 'traj' ? '▶' : kind === 'hess' ? '〰' : kind === 'engrad' ? '↗' : '📄';
+    const clsFor = (kind) =>
+      kind === 'traj'
+        ? 'related-pill related-pill-traj'
+        : kind === 'hess'
+          ? 'related-pill related-pill-hess'
+          : 'related-pill';
+    bar.innerHTML =
+      `<span class="related-label">Related:</span>` +
+      relatedFiles
+        .map(
+          (r, idx) =>
+            `<button class="${clsFor(r.kind)}" data-rel-idx="${idx}" title="${escapeHtml(r.fileName)}">${iconFor(r.kind)} ${escapeHtml(r.tag)} (${escapeHtml(r.fileName)})</button>`
+        )
+        .join('');
+    bar.querySelectorAll('button[data-rel-idx]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const item = relatedFiles[Number(btn.dataset.relIdx)];
+        if (item) {
+          vscode.postMessage({ type: 'loadRelatedFile', filePath: item.filePath });
+        }
+      });
+    });
+  }
+
   // ---- Load Data Entry Point ----
   function loadPayload(payload) {
     stopPlayback();
     stopVibration();
+    const isNewFile = lastLoadedFilePath !== payload.data?.filePath;
     data = payload.data;
+    lastLoadedFilePath = data?.filePath ?? null;
+    relatedFiles = Array.isArray(payload.relatedFiles) ? payload.relatedFiles : [];
     if (payload.config) {
       config = { ...config, ...payload.config };
       representation = config.defaultRepresentation || 'ballstick';
@@ -1337,6 +1410,7 @@
 
     // Update topbar
     $('file-title').textContent = data.fileName;
+    renderRelatedBar();
     const statusBadge = $('status-badge');
     const st = data.status;
     statusBadge.textContent =
@@ -1379,11 +1453,29 @@
     $('ir-fwhm').value = String(irFwhm);
     $('ir-fwhm-val').textContent = `${irFwhm} cm⁻¹`;
 
+    const hasAnimModes = getAnimatableModes().length > 0;
+    $('btn-vibrate-quick')?.classList.toggle('hidden', !hasAnimModes);
+
     setupTabs();
     renderSummaryTab();
     renderFrequencyTable();
     renderUvTab();
     renderOrbitalsAndCharges();
+
+    // Auto-select the most useful analysis tab when opening a new file
+    if (isNewFile) {
+      const hasConv =
+        data.optCycles.length > 0 ||
+        data.scfSteps.length > 0 ||
+        data.frames.filter((f) => f.energy !== undefined).length > 1;
+      if (data.fileType === 'hess' || (data.frequencies.length > 0 && data.optCycles.length === 0)) {
+        switchTab('freq');
+      } else if (data.fileType === 'xyz' && data.frames.length > 1 && hasConv) {
+        switchTab('conv');
+      } else {
+        switchTab('summary');
+      }
+    }
 
     // Start on final frame for opt outputs, frame 0 for scan/xyz
     const initialFrame =
@@ -1533,6 +1625,29 @@
     });
 
     // Vibration controls
+    $('btn-vibrate-quick')?.addEventListener('click', () => {
+      if (activeVibMode) {
+        stopVibration();
+        return;
+      }
+      switchTab('freq');
+      const modes = getAnimatableModes();
+      if (modes.length > 0) {
+        const firstImag = modes.find((m) => m.isImaginary);
+        startVibration(firstImag || modes[0]);
+      }
+    });
+    $('btn-vib-prev')?.addEventListener('click', () => stepVibration(-1));
+    $('btn-vib-next')?.addEventListener('click', () => stepVibration(1));
+    $('btn-export-vib-xyz')?.addEventListener('click', () => {
+      if (!data || !activeVibMode || !data.frames[currentFrameIdx]) return;
+      vscode.postMessage({
+        type: 'exportVibXyz',
+        frame: data.frames[currentFrameIdx],
+        mode: activeVibMode,
+        amplitude: vibAmplitude
+      });
+    });
     $('btn-stop-vib').addEventListener('click', stopVibration);
     $('vib-amp').addEventListener('input', (e) => {
       vibAmplitude = parseFloat(e.target.value);
@@ -1547,6 +1662,40 @@
     $('chk-hide-tr').addEventListener('change', (e) => {
       hideTransRot = e.target.checked;
       renderFrequencyTable();
+    });
+
+    // Keyboard shortcuts for trajectory & vibration navigation
+    window.addEventListener('keydown', (e) => {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') {
+        return;
+      }
+      if (e.code === 'Space') {
+        if (activeVibMode) {
+          e.preventDefault();
+          stopVibration();
+        } else if (data && data.frames.length > 1) {
+          e.preventDefault();
+          if (isPlaying) stopPlayback();
+          else startPlayback();
+        }
+      } else if (e.key === 'ArrowLeft' && data && data.frames.length > 1) {
+        e.preventDefault();
+        stopPlayback();
+        stopVibration();
+        renderFrame(Math.max(0, currentFrameIdx - 1), true);
+      } else if (e.key === 'ArrowRight' && data && data.frames.length > 1) {
+        e.preventDefault();
+        stopPlayback();
+        stopVibration();
+        renderFrame(Math.min(data.frames.length - 1, currentFrameIdx + 1), true);
+      } else if (e.key === 'ArrowUp' && activeVibMode) {
+        e.preventDefault();
+        stepVibration(-1);
+      } else if (e.key === 'ArrowDown' && activeVibMode) {
+        e.preventDefault();
+        stepVibration(1);
+      }
     });
 
     // Chart controls

@@ -23,7 +23,7 @@ export function parseXyzContent(content: string, filePath: string): ParsedOrcaDa
       continue;
     }
     const nAtoms = parseInt(countStr, 10);
-    if (nAtoms <= 0 || i + 1 + nAtoms > lines.length) {
+    if (nAtoms <= 0 || i + 1 + nAtoms >= lines.length) {
       break;
     }
     const comment = (lines[i + 1] ?? '').trim();
@@ -33,7 +33,7 @@ export function parseXyzContent(content: string, filePath: string): ParsedOrcaDa
       const lineIdx = i + 2 + k;
       const raw = (lines[lineIdx] ?? '').trim();
       const m = raw.match(
-        /^([A-Za-z]{1,2}|\d+)\s*(:)?(?:\(\d+\))?\s+([+-]?\d+(?:\.\d*)?(?:[eEdD][+-]?\d+)?)\s+([+-]?\d+(?:\.\d*)?(?:[eEdD][+-]?\d+)?)\s+([+-]?\d+(?:\.\d*)?(?:[eEdD][+-]?\d+)?)/
+        /^([A-Za-z]{1,2}|\d+)\s*(:)?(?:\(\d+\))?\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eEdD][+-]?\d+)?)\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eEdD][+-]?\d+)?)\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eEdD][+-]?\d+)?)/
       );
       if (!m) {
         valid = false;
@@ -49,11 +49,12 @@ export function parseXyzContent(content: string, filePath: string): ParsedOrcaDa
     }
     if (valid && atoms.length === nAtoms) {
       // Try extracting energy from ORCA or generic comment line
-      // e.g. "Coordinates from ORCA-job acceptor_opt_2340433 E -248.243778455619"
+      // e.g. "Coordinates from ORCA-job water_opt E -76.438912345678"
       let energy: number | undefined;
       const eMatch =
         comment.match(/\bE\s*=?\s*([+-]?\d+\.\d+(?:[eE][+-]?\d+)?)/) ||
-        comment.match(/\bEnergy\s*[=:]\s*([+-]?\d+\.\d+(?:[eE][+-]?\d+)?)/i);
+        comment.match(/\bEnergy\s*[=:]?\s*([+-]?\d+\.\d+(?:[eE][+-]?\d+)?)/i) ||
+        comment.match(/^([+-]?\d+\.\d+(?:[eE][+-]?\d+)?)$/);
       if (eMatch) {
         energy = parseFloat(eMatch[1]);
       }

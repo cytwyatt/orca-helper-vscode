@@ -68,6 +68,8 @@ Always run `npm run typecheck && npm test` (and `npm run compile` when changing 
 │   │   ├── hoverProvider.ts          # Keyword/block/param hover + 0-based atom hover on coord lines
 │   │   ├── diagnosticsProvider.ts    # Maps orcaInputParser diagnostics to VS Code DiagnosticCollection
 │   │   └── symbolProvider.ts         # DocumentSymbolProvider backed by ParsedOrcaData.outline
+│   ├── utils/
+│   │   └── relatedFiles.ts           # Pure Node sibling file discovery (_trj.xyz/.allxyz/.hess) & .hess enrichment
 │   ├── views/
 │   │   └── sidebarViews.ts           # TreeDataProviders: Outline/TOC, Job Summary, Workspace Files
 │   └── webview/
@@ -120,9 +122,10 @@ Follow these invariants strictly when making changes:
    - `src/extension.ts` caches parse results by `(uri, document.version)`; clear/invalidate the cache on document edit/save/close.
    - Short-contact checking in `orcaInputParser.ts` is `O(N²)` and is intentionally capped at `<= 400` atoms and at most 10 warnings.
 
-6. **`.out` / `.log` Language Auto-Detection**
+6. **`.inp` & `.out` / `.log` Language Auto-Detection**
    - Do **not** bind `.out` or `.log` directly in `package.json` `contributes.languages` — that would hijack unrelated build/Slurm logs.
-   - Instead, `onStartupFinished` activates the extension so `inspectActiveDocument()` can peek at the first ~120 lines via `isOrcaOutputContent()` and call `vscode.languages.setTextDocumentLanguage(doc, 'orca-output')` only for genuine ORCA outputs.
+   - Because other extensions (e.g., Packmol / `gmx_helper`) may also register `.inp`, `maybeAutoDetectOrcaLanguage()` in `src/extension.ts` inspects `.inp` buffers with `isOrcaInputContent()` and switches genuine ORCA inputs to `orca-input`, while `diagnosticsProvider` and `parseAnyOrcaFile()` skip non-ORCA `.inp` files.
+   - Similarly, `onStartupFinished` allows peeking at the first ~120 lines of `.out`/`.log` via `isOrcaOutputContent()` and calling `vscode.languages.setTextDocumentLanguage(doc, 'orca-output')` only for genuine ORCA outputs.
 
 7. **Keyword & Grammar Consistency**
    - When adding or updating ORCA 6 keywords, methods, blocks, or deprecated warnings, keep these files in sync:

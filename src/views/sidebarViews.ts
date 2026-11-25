@@ -115,7 +115,7 @@ export class OrcaSummaryProvider implements vscode.TreeDataProvider<SummaryEntry
       return [
         new SummaryEntryItem(
           'Open an ORCA file',
-          '.inp / .out / .xyz / .hess / .engrad',
+          '.inp / .out / _trj.xyz / .trj / .allxyz / .hess / .engrad',
           'info'
         )
       ];
@@ -276,11 +276,13 @@ export class OrcaWorkspaceFileItem extends vscode.TreeItem {
     this.iconPath =
       ext === '.inp'
         ? new vscode.ThemeIcon('file-code')
-        : ext === '.xyz'
-          ? new vscode.ThemeIcon('globe')
-          : ext === '.hess'
-            ? new vscode.ThemeIcon('pulse')
-            : new vscode.ThemeIcon('output');
+        : ext === '.trj' || ext === '.allxyz' || fileName.toLowerCase().endsWith('_trj.xyz')
+          ? new vscode.ThemeIcon('play')
+          : ext === '.xyz'
+            ? new vscode.ThemeIcon('globe')
+            : ext === '.hess'
+              ? new vscode.ThemeIcon('pulse')
+              : new vscode.ThemeIcon('output');
     this.command = {
       command: 'vscode.open',
       title: 'Open File',
@@ -309,7 +311,7 @@ export class OrcaWorkspaceFilesProvider implements vscode.TreeDataProvider<OrcaW
     }
     const root = vscode.workspace.workspaceFolders[0].uri.fsPath;
     const files = await vscode.workspace.findFiles(
-      '**/*.{inp,out,xyz,hess,engrad}',
+      '**/*.{inp,out,xyz,trj,allxyz,hess,engrad}',
       '**/{node_modules,.git,slurm,slurm_result}/**',
       150
     );

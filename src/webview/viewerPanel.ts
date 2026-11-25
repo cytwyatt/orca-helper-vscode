@@ -1,7 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { GeometryFrame, ParsedOrcaData } from '../parsers';
+import { GeometryFrame, parseAnyOrcaFile, ParsedOrcaData, VibrationalMode } from '../parsers';
+import { enrichParsedWithSiblingHess, findRelatedOrcaFiles } from '../utils/relatedFiles';
 
 export class OrcaViewerPanel {
   private static panels = new Map<string, OrcaViewerPanel>();
@@ -80,6 +81,16 @@ export class OrcaViewerPanel {
           case 'exportXyz':
             await this.exportFrameXyz(msg.frame as GeometryFrame);
             break;
+          case 'exportVibXyz':
+            await this.exportVibrationXyz(
+              msg.frame as GeometryFrame,
+              msg.mode as VibrationalMode,
+              Number(msg.amplitude ?? 0.45)
+            );
+            break;
+          case 'loadRelatedFile':
+            await this.loadRelatedFile(String(msg.filePath || ''));
+            break;
           case 'savePng':
             await this.savePng(String(msg.dataUrl || ''));
             break;
@@ -91,6 +102,11 @@ export class OrcaViewerPanel {
   }
 
   public update(data: ParsedOrcaData): void {
+    const oldKey = this.currentData.filePath;
+    if (oldKey !== data.filePath) {
+      OrcaViewerPanel.panels.delete(oldKey);
+      OrcaViewerPanel.panels.set(data.filePath, this);
+    }
     this.currentData = data;
     this.panel.title = `ORCA 6: ${data.fileName}`;
     if (this.isReady) {
@@ -100,9 +116,13 @@ export class OrcaViewerPanel {
 
   private postData(): void {
     const cfg = vscode.workspace.getConfiguration('orcaHelper');
+    const relatedFiles = findRelatedOrcaFiles(this.currentData.filePath).filter(
+      (r) => r.kind !== 'prop'
+    );
     this.panel.webview.postMessage({
       type: 'loadData',
       data: this.currentData,
+      relatedFiles,
       config: {
         defaultRepresentation: cfg.get<string>('defaultRepresentation', 'ballstick'),
         showGhostAtoms: cfg.get<boolean>('showGhostAtoms', true),
@@ -110,6 +130,90 @@ export class OrcaViewerPanel {
         uvBroadeningEv: cfg.get<number>('uvBroadeningEv', 0.3)
       }
     });
+  }
+
+  private async loadRelatedFile(filePath: string): Promise<void> {
+    if (!filePath || !fs.existsSync(filePath)) {
+      vscode.window.showWarningMessage(`File not found: ${filePath}`);
+      return;
+    }
+    try {
+      const openDoc = vscode.workspace.textDocuments.find((d) => d.uri.fsPath === filePath);
+      const text = openDoc ? openDoc.getText() : fs.readFileSync(filePath, 'utf8');
+      const cfg = vscode.workspace.getConfiguration('orcaHelper');
+      const rawParsed = parseAnyOrcaFile(
+        text,
+        filePath,
+        cfg.get<number>('shortContactThreshold', 0.5)
+      );
+      if (!rawParsed) {
+        vscode.window.showWarningMessage(
+          `Could not parse "${path.basename(filePath)}" as an ORCA structure/trajectory/Hessian file.`
+        );
+        return;
+      }
+      this.update(enrichParsedWithSiblingHess(rawParsed));
+    } catch (err) {
+      vscode.window.showErrorMessage(
+        `Failed to load ${path.basename(filePath)}: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+
+  private async exportVibrationXyz(
+    frame: GeometryFrame,
+    mode: VibrationalMode,
+    amplitude: number
+  ): Promise<void> {
+    if (!frame || !mode || !mode.displacements || mode.displacements.length === 0) {
+      return;
+    }
+    const baseName = path.basename(
+      this.currentData.filePath,
+      path.extname(this.currentData.filePath)
+    );
+    const defaultUri = vscode.Uri.file(
+      path.join(path.dirname(this.currentData.filePath), `${baseName}_mode${mode.mode}.xyz`)
+    );
+    const saveUri = await vscode.window.showSaveDialog({
+      defaultUri,
+      filters: { 'XYZ Trajectory': ['xyz'] }
+    });
+    if (!saveUri) {
+      return;
+    }
+
+    let maxD = 0;
+    for (const d of mode.displacements) {
+      maxD = Math.max(maxD, Math.hypot(d.dx, d.dy, d.dz));
+    }
+    const normFactor = maxD > 1e-6 ? 1 / maxD : 1;
+    const nFrames = 20;
+    const outLines: string[] = [];
+
+    for (let f = 0; f < nFrames; f++) {
+      const phase = Math.sin((2 * Math.PI * f) / nFrames);
+      const scale = phase * amplitude * normFactor;
+      outLines.push(String(frame.atoms.length));
+      outLines.push(
+        `Mode ${mode.mode} (${mode.frequency.toFixed(2)} cm^-1) frame ${f + 1}/${nFrames}`
+      );
+      for (let i = 0; i < frame.atoms.length; i++) {
+        const a = frame.atoms[i];
+        const d = mode.displacements[i] ?? { dx: 0, dy: 0, dz: 0 };
+        const x = a.x + d.dx * scale;
+        const y = a.y + d.dy * scale;
+        const z = a.z + d.dz * scale;
+        outLines.push(
+          `  ${a.element.padEnd(3)} ${x.toFixed(8).padStart(14)} ${y.toFixed(8).padStart(14)} ${z.toFixed(8).padStart(14)}`
+        );
+      }
+    }
+
+    fs.writeFileSync(saveUri.fsPath, outLines.join('\n') + '\n', 'utf8');
+    vscode.window.showInformationMessage(
+      `Saved ${nFrames}-frame vibration animation to ${path.basename(saveUri.fsPath)}.`
+    );
   }
 
   private async jumpToSourceLine(line: number): Promise<void> {
@@ -242,6 +346,8 @@ export class OrcaViewerPanel {
       </div>
     </header>
 
+    <div id="related-bar" class="related-bar hidden"></div>
+
     <div class="workspace">
       <!-- Left: 3D Molecular Viewer -->
       <section class="viewer-pane">
@@ -266,6 +372,7 @@ export class OrcaViewerPanel {
             <option value="hirshfeld">Charge: Hirshfeld</option>
           </select>
           <button id="btn-measure" title="Click 2/3/4 atoms to measure distance, angle, dihedral">Measure</button>
+          <button id="btn-vibrate-quick" class="hidden" title="Animate normal-mode vibrations in 3D">〰 Vibrations</button>
           <button id="btn-reset-view" title="Reset camera">Reset</button>
           <button id="btn-bg-toggle" title="Toggle Dark/Light 3D background">BG</button>
           <label id="wrap-ghosts"><input type="checkbox" id="chk-ghosts" checked /> Ghosts</label>
@@ -285,10 +392,13 @@ export class OrcaViewerPanel {
         </div>
 
         <div id="vib-bar" class="vib-bar hidden">
+          <button id="btn-vib-prev" title="Previous vibrational mode (↑)">◀</button>
           <strong id="vib-label">Mode</strong>
+          <button id="btn-vib-next" title="Next vibrational mode (↓)">▶</button>
           <label>Amp <input id="vib-amp" type="range" min="0.1" max="1.2" step="0.05" value="0.45" /></label>
           <label>Speed <input id="vib-speed" type="range" min="0.3" max="2.5" step="0.1" value="1.0" /></label>
           <label><input type="checkbox" id="chk-vib-vectors" /> Vectors</label>
+          <button id="btn-export-vib-xyz" title="Export 20-frame vibration animation as .xyz">Export XYZ</button>
           <button id="btn-stop-vib" class="primary">Stop</button>
         </div>
 

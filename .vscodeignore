@@ -10,7 +10,7 @@ node_modules/**
 .gitignore
 AGENTS.md
 tsconfig.json
-dist/parsers-test-bundle.cjs
+dist/*-test-bundle.cjs
 **/*.ts
 **/*.map
 *.vsix

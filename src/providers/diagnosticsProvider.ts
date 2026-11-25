@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { parseOrcaInput } from '../parsers/orcaInputParser';
+import { isOrcaInputContent, parseOrcaInput } from '../parsers/orcaInputParser';
 
 export class OrcaDiagnosticsManager {
   private readonly collection: vscode.DiagnosticCollection;
@@ -9,13 +9,20 @@ export class OrcaDiagnosticsManager {
   }
 
   public validateDocument(document: vscode.TextDocument): void {
-    if (document.languageId !== 'orca-input' && !document.fileName.toLowerCase().endsWith('.inp')) {
+    const isInpExt = document.fileName.toLowerCase().endsWith('.inp');
+    if (document.languageId !== 'orca-input' && !isInpExt) {
+      return;
+    }
+    const text = document.getText();
+    // Avoid producing false ORCA diagnostics on Packmol / Abaqus / non-ORCA .inp files
+    if (document.languageId !== 'orca-input' && !isOrcaInputContent(text)) {
+      this.collection.delete(document.uri);
       return;
     }
     const config = vscode.workspace.getConfiguration('orcaHelper');
     const shortContactThreshold = config.get<number>('shortContactThreshold', 0.5);
 
-    const parsed = parseOrcaInput(document.getText(), document.uri.fsPath, shortContactThreshold);
+    const parsed = parseOrcaInput(text, document.uri.fsPath, shortContactThreshold);
     const vsDiagnostics = parsed.diagnostics.map((d) => {
       const lineIdx = Math.min(Math.max(0, d.line), Math.max(0, document.lineCount - 1));
       const lineLen = document.lineAt(lineIdx).text.length;

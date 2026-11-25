@@ -1,12 +1,12 @@
 import * as path from 'path';
 import { parseEngradContent, parseHessContent } from './hessEngradParser';
-import { parseOrcaInput } from './orcaInputParser';
+import { isOrcaInputContent, parseOrcaInput } from './orcaInputParser';
 import { isOrcaOutputContent, parseOrcaOutput } from './orcaOutputParser';
 import { ParsedOrcaData } from './types';
 import { parseXyzContent } from './xyzParser';
 
 export * from './types';
-export { parseOrcaInput } from './orcaInputParser';
+export { isOrcaInputContent, parseOrcaInput } from './orcaInputParser';
 export { isOrcaOutputContent, parseOrcaOutput } from './orcaOutputParser';
 export { parseXyzContent } from './xyzParser';
 export { parseHessContent, parseEngradContent } from './hessEngradParser';
@@ -18,10 +18,14 @@ export function parseAnyOrcaFile(
 ): ParsedOrcaData | undefined {
   const ext = path.extname(filePath).toLowerCase();
   if (ext === '.inp') {
+    if (!isOrcaInputContent(content)) {
+      return undefined;
+    }
     return parseOrcaInput(content, filePath, shortContactThreshold).data;
   }
-  if (ext === '.xyz') {
-    return parseXyzContent(content, filePath);
+  if (ext === '.xyz' || ext === '.trj' || ext === '.allxyz') {
+    const parsed = parseXyzContent(content, filePath);
+    return parsed.frames.length > 0 ? parsed : undefined;
   }
   if (ext === '.hess') {
     return parseHessContent(content, filePath);

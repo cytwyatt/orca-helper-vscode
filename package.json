@@ -2,7 +2,7 @@
   "name": "orca-helper-vscode",
   "displayName": "ORCA 6 Helper",
   "description": "All-in-one VS Code extension for ORCA 6 quantum chemistry: syntax highlighting, completions, hover docs, diagnostics, output outline TOC, 3D molecular & trajectory visualization, convergence charts, vibrational animations, and IR/UV-Vis spectra.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "cytwyatt",
   "author": {
     "name": "cytwyatt",
@@ -80,10 +80,13 @@
         "id": "orca-xyz",
         "aliases": [
           "XYZ Molecular Coordinates",
-          "xyz"
+          "xyz",
+          "ORCA Trajectory"
         ],
         "extensions": [
-          ".xyz"
+          ".xyz",
+          ".trj",
+          ".allxyz"
         ]
       },
       {
@@ -185,7 +188,7 @@
       },
       {
         "command": "orcaHelper.openRelatedFile",
-        "title": "ORCA 6: Switch Between Related Files (.inp / .out / _trj.xyz / .hess)",
+        "title": "ORCA 6: Switch Between Related Files (.inp / .out / _trj.xyz / .allxyz / .hess)",
         "icon": "$(arrow-swap)"
       },
       {
@@ -209,7 +212,7 @@
       "explorer/context": [
         {
           "command": "orcaHelper.openViewerFromExplorer",
-          "when": "resourceExtname =~ /^\\.(inp|out|xyz|hess|engrad|log)$/i",
+          "when": "resourceExtname =~ /^\\.(inp|out|orcaout|xyz|trj|allxyz|hess|engrad|log)$/i",
           "group": "navigation"
         }
       ],
@@ -234,6 +237,11 @@
     "configuration": {
       "title": "ORCA 6 Helper",
       "properties": {
+        "orcaHelper.autoDetectInputLanguage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically apply ORCA Input syntax highlighting when opening a .inp file containing ORCA keywords (avoids conflicts with Packmol or other .inp extensions)."
+        },
         "orcaHelper.autoDetectOutputLanguage": {
           "type": "boolean",
           "default": true,

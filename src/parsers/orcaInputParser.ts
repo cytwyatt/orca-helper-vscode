@@ -64,6 +64,48 @@ function stripComment(line: string): string {
   return line;
 }
 
+const ORCA_BLOCK_HEADER_RE =
+  /^%(pal|maxcore|scf|geom|basis|tddft|freq|cpcm|mp2|mdci|neb|goat|casscf|plots|output|moinp|base|elprop|rel|coords|method|id|irc|md|docker|solvator|esd|vpt2|eprnmr|mrci|autoci|rocis|nbo|qmmm|mm|xtb|cis|loc|rr|ice|compound)\b/i;
+
+const PACKMOL_DIRECTIVE_RE =
+  /^(tolerance\s+[\d.]+|filetype\s+\w+|structure\s+\S+|end\s+structure|inside\s+(?:box|cube|sphere|cylinder|xygauss|over|below)\b|outside\s+(?:box|cube|sphere|cylinder)\b|discale\s+|add_box_sides\b|seed\s+-?\d+|pbc\s+)/i;
+
+export function isOrcaInputContent(text: string): boolean {
+  const lines = text.split(/\r?\n/);
+  const maxLines = Math.min(lines.length, 200);
+  let orcaScore = 0;
+  let nonOrcaScore = 0;
+
+  for (let i = 0; i < maxLines; i++) {
+    const clean = stripComment(lines[i]).trim();
+    if (!clean) {
+      continue;
+    }
+    if (PACKMOL_DIRECTIVE_RE.test(clean)) {
+      nonOrcaScore += 2;
+      continue;
+    }
+    if (/^\*\s*(xyz|xyzfile|int|intfile|internal|gzmt|gzmtfile)\s+[+-]?\d+\s+\d+/i.test(clean)) {
+      orcaScore += 3;
+      continue;
+    }
+    if (ORCA_BLOCK_HEADER_RE.test(clean)) {
+      orcaScore += 2;
+      continue;
+    }
+    if (/^\$new_job\b/i.test(clean)) {
+      orcaScore += 2;
+      continue;
+    }
+    if (/^!\s*[A-Za-z0-9_]/.test(clean)) {
+      orcaScore += 2;
+      continue;
+    }
+  }
+
+  return orcaScore > 0 && orcaScore >= nonOrcaScore;
+}
+
 export function parseOrcaInput(
   content: string,
   filePath: string,

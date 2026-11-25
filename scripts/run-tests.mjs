@@ -6,8 +6,9 @@ import * as esbuild from 'esbuild';
 const root = path.resolve(import.meta.dirname, '..');
 const fixturesDir = path.join(root, 'test-fixtures');
 const outFile = path.join(root, 'dist', 'parsers-test-bundle.cjs');
+const relatedOutFile = path.join(root, 'dist', 'related-test-bundle.cjs');
 
-// Bundle parsers for direct Node test execution
+// Bundle parsers and pure utilities for direct Node test execution
 await esbuild.build({
   entryPoints: [path.join(root, 'src', 'parsers', 'index.ts')],
   bundle: true,
@@ -16,8 +17,17 @@ await esbuild.build({
   target: 'node18',
   outfile: outFile
 });
+await esbuild.build({
+  entryPoints: [path.join(root, 'src', 'utils', 'relatedFiles.ts')],
+  bundle: true,
+  format: 'cjs',
+  platform: 'node',
+  target: 'node18',
+  outfile: relatedOutFile
+});
 
 const parsers = await import(outFile);
+const related = await import(relatedOutFile);
 
 let passed = 0;
 let failed = 0;
@@ -228,6 +238,97 @@ VIBRATIONAL FREQUENCIES
   assert.equal(data.excitedStates[0].transition, '0-1A -> 1-1A');
   assert.ok(Math.abs(data.excitedStates[0].wavelengthNm - 171.9) < 0.01);
   assert.ok(Math.abs(data.excitedStates[1].fosc - 0.1452) < 1e-4);
+});
+
+test('Auto-detect distinguishes ORCA .inp from Packmol .inp and Abaqus .inp', () => {
+  const packmolInp = `
+# Packmol input file
+tolerance 2.0
+filetype pdb
+output mixture.pdb
+
+structure water.pdb
+  number 500
+  inside box 0. 0. 0. 40. 40. 40.
+end structure
+`;
+  const abaqusInp = `
+*HEADING
+Cantilever beam
+*NODE
+1, 0.0, 0.0, 0.0
+`;
+  const orcaInp = `
+%pal nprocs 8 end
+! B3LYP D3BJ def2-TZVP Opt Freq
+* xyz 0 1
+H 0.0 0.0 0.0
+H 0.0 0.0 0.74
+*
+`;
+  assert.equal(parsers.isOrcaInputContent(packmolInp), false);
+  assert.equal(parsers.isOrcaInputContent(abaqusInp), false);
+  assert.equal(parsers.isOrcaInputContent(orcaInp), true);
+  assert.equal(parsers.parseAnyOrcaFile(packmolInp, '/tmp/packmol.inp'), undefined);
+  assert.ok(parsers.parseAnyOrcaFile(orcaInp, '/tmp/orca.inp') !== undefined);
+});
+
+test('Parse .allxyz (with ">" frame separators) and .trj trajectories', () => {
+  const allxyz = `2
+-1.172000
+H 0.0 0.0 0.0
+H 0.0 0.0 .74
+>
+2
+-1.168500
+H 0.0 0.0 0.0
+H 0.0 0.0 .84
+`;
+  const parsedAll = parsers.parseAnyOrcaFile(allxyz, '/tmp/scan.allxyz');
+  assert.ok(parsedAll, 'Expected .allxyz to parse');
+  assert.equal(parsedAll.frames.length, 2);
+  assert.ok(Math.abs(parsedAll.frames[0].energy - -1.172) < 1e-6);
+  assert.ok(Math.abs(parsedAll.frames[1].atoms[1].z - 0.84) < 1e-6);
+
+  const parsedTrj = parsers.parseAnyOrcaFile(allxyz, '/tmp/md.trj');
+  assert.ok(parsedTrj, 'Expected .trj to parse');
+  assert.equal(parsedTrj.frames.length, 2);
+});
+
+test('Discover sibling trajectory/hessian files and enrich .out frequencies from sibling .hess', () => {
+  const trjPath = path.join(fixturesDir, 'water_opt_trj.xyz');
+  const siblings = related.findRelatedOrcaFiles(trjPath);
+  const names = siblings.map((s) => s.fileName);
+  assert.ok(names.includes('water_opt.hess'), `Expected water_opt.hess in ${names}`);
+  assert.ok(names.includes('water_opt.engrad'), `Expected water_opt.engrad in ${names}`);
+
+  // Build an .out missing NORMAL MODES sitting next to water_opt.hess
+  const fakeOutPath = path.join(fixturesDir, 'water_opt.out');
+  const minimalOut = `
+                         Program Version 6.1.1  -  RELEASE   -
+---------------------------------
+CARTESIAN COORDINATES (ANGSTROEM)
+---------------------------------
+  O   0.000000   0.000000   0.117300
+  H   0.000000   0.757000  -0.469200
+  H   0.000000  -0.757000  -0.469200
+-----------------------
+VIBRATIONAL FREQUENCIES
+-----------------------
+     0:       0.00 cm**-1
+     6:    1625.40 cm**-1
+
+                             ****ORCA TERMINATED NORMALLY****
+`;
+  const parsedOut = parsers.parseOrcaOutput(minimalOut, fakeOutPath);
+  assert.equal(parsedOut.frequencies.find((m) => m.mode === 6).displacements, undefined);
+  const enriched = related.enrichParsedWithSiblingHess(parsedOut);
+  const enrichedMode6 = enriched.frequencies.find((m) => m.mode === 6);
+  assert.ok(
+    enrichedMode6.displacements && enrichedMode6.displacements.length === 3,
+    'Expected displacements merged from sibling water_opt.hess'
+  );
+  assert.ok(Math.abs(enrichedMode6.irIntensity - 73.42) < 0.1);
 });
 
 console.log(`\nResults: ${passed} passed, ${failed} failed\n`);

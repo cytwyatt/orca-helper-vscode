@@ -1,11 +1,17 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { isOrcaOutputContent, parseAnyOrcaFile, ParsedOrcaData } from './parsers';
+import {
+  isOrcaInputContent,
+  isOrcaOutputContent,
+  parseAnyOrcaFile,
+  ParsedOrcaData
+} from './parsers';
 import { OrcaCompletionProvider } from './providers/completionProvider';
 import { OrcaDiagnosticsManager } from './providers/diagnosticsProvider';
 import { OrcaHoverProvider } from './providers/hoverProvider';
 import { OrcaDocumentSymbolProvider } from './providers/symbolProvider';
+import { enrichParsedWithSiblingHess, findRelatedOrcaFiles } from './utils/relatedFiles';
 import {
   OrcaOutlineProvider,
   OrcaSummaryProvider,
@@ -13,7 +19,17 @@ import {
 } from './views/sidebarViews';
 import { OrcaViewerPanel } from './webview/viewerPanel';
 
-const SUPPORTED_EXTENSIONS = new Set(['.inp', '.out', '.orcaout', '.xyz', '.hess', '.engrad', '.log']);
+const SUPPORTED_EXTENSIONS = new Set([
+  '.inp',
+  '.out',
+  '.orcaout',
+  '.xyz',
+  '.trj',
+  '.allxyz',
+  '.hess',
+  '.engrad',
+  '.log'
+]);
 
 const TEMPLATES: Record<string, string> = {
   'Opt + Freq (DFT: B3LYP-D3BJ/def2-TZVPP)': `%pal nprocs 16 end
@@ -158,17 +174,28 @@ export function activate(context: vscode.ExtensionContext): void {
     return data;
   }
 
-  async function inspectActiveDocument(doc?: vscode.TextDocument): Promise<void> {
-    if (!doc) {
-      await vscode.commands.executeCommand('setContext', 'orcaHelper.isSupportedFile', false);
-      statusBarItem.hide();
-      outlineProvider.update(undefined);
-      summaryProvider.update(undefined);
-      return;
-    }
-
+  async function maybeAutoDetectOrcaLanguage(doc: vscode.TextDocument): Promise<void> {
     const ext = path.extname(doc.fileName).toLowerCase();
     const cfg = vscode.workspace.getConfiguration('orcaHelper');
+
+    // Auto-apply orca-input when another extension (e.g. Packmol in gmx_helper) claims .inp
+    if (
+      ext === '.inp' &&
+      doc.languageId !== 'orca-input' &&
+      cfg.get<boolean>('autoDetectInputLanguage', true)
+    ) {
+      const head = doc.getText(
+        new vscode.Range(0, 0, Math.min(200, doc.lineCount), 0)
+      );
+      if (isOrcaInputContent(head)) {
+        try {
+          await vscode.languages.setTextDocumentLanguage(doc, 'orca-input');
+        } catch {
+          // ignore if language switch fails
+        }
+      }
+      return;
+    }
 
     // Auto-apply orca-output syntax highlighting if .out/.log is genuinely an ORCA output
     if (
@@ -187,7 +214,20 @@ export function activate(context: vscode.ExtensionContext): void {
         }
       }
     }
+  }
 
+  async function inspectActiveDocument(doc?: vscode.TextDocument): Promise<void> {
+    if (!doc) {
+      await vscode.commands.executeCommand('setContext', 'orcaHelper.isSupportedFile', false);
+      statusBarItem.hide();
+      outlineProvider.update(undefined);
+      summaryProvider.update(undefined);
+      return;
+    }
+
+    await maybeAutoDetectOrcaLanguage(doc);
+
+    const ext = path.extname(doc.fileName).toLowerCase();
     if (doc.languageId === 'orca-input' || ext === '.inp') {
       diagnostics.validateDocument(doc);
     }
@@ -242,19 +282,26 @@ export function activate(context: vscode.ExtensionContext): void {
     }
 
     if (!targetPath || text === undefined) {
-      vscode.window.showWarningMessage('Open an ORCA file (.inp, .out, .xyz, .hess, .engrad) first.');
+      vscode.window.showWarningMessage(
+        'Open an ORCA file (.inp, .out, _trj.xyz, .trj, .allxyz, .hess, .engrad) first.'
+      );
       return;
     }
 
     const cfg = vscode.workspace.getConfiguration('orcaHelper');
-    const parsed = parseAnyOrcaFile(text, targetPath, cfg.get<number>('shortContactThreshold', 0.5));
-    if (!parsed) {
+    const rawParsed = parseAnyOrcaFile(
+      text,
+      targetPath,
+      cfg.get<number>('shortContactThreshold', 0.5)
+    );
+    if (!rawParsed) {
       vscode.window.showWarningMessage(
         `"${path.basename(targetPath)}" does not appear to be a recognized ORCA 6 file.`
       );
       return;
     }
 
+    const parsed = enrichParsedWithSiblingHess(rawParsed);
     outlineProvider.update(parsed);
     summaryProvider.update(parsed);
     OrcaViewerPanel.createOrShow(context.extensionUri, parsed);
@@ -313,29 +360,22 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!doc) {
         return;
       }
-      const dir = path.dirname(doc.uri.fsPath);
-      const baseRaw = path.basename(doc.uri.fsPath, path.extname(doc.uri.fsPath));
-      const stem = baseRaw.replace(/_trj$/i, '');
-      const candidates = [
-        `${stem}.inp`,
-        `${stem}.out`,
-        `${stem}_trj.xyz`,
-        `${stem}.xyz`,
-        `${stem}.hess`,
-        `${stem}.engrad`,
-        `${stem}.property.txt`
-      ]
-        .map((name) => path.join(dir, name))
-        .filter((p) => p !== doc.uri.fsPath && fs.existsSync(p));
-
-      if (candidates.length === 0) {
-        vscode.window.showInformationMessage(`No sibling ORCA files found for "${stem}".`);
+      const related = findRelatedOrcaFiles(doc.uri.fsPath);
+      if (related.length === 0) {
+        vscode.window.showInformationMessage(
+          `No sibling ORCA files found for "${path.basename(doc.uri.fsPath)}".`
+        );
         return;
       }
 
       const pick = await vscode.window.showQuickPick(
-        candidates.map((p) => ({ label: path.basename(p), description: p, fullPath: p })),
-        { placeHolder: `Switch to related file for ${stem}` }
+        related.map((r) => ({
+          label: r.fileName,
+          description: r.tag,
+          detail: r.filePath,
+          fullPath: r.filePath
+        })),
+        { placeHolder: `Switch to related file for ${path.basename(doc.uri.fsPath)}` }
       );
       if (pick) {
         const opened = await vscode.workspace.openTextDocument(vscode.Uri.file(pick.fullPath));
@@ -377,9 +417,11 @@ export function activate(context: vscode.ExtensionContext): void {
       void inspectActiveDocument(editor?.document);
     }),
     vscode.workspace.onDidOpenTextDocument((doc) => {
-      if (doc.languageId === 'orca-input' || doc.fileName.toLowerCase().endsWith('.inp')) {
-        diagnostics.validateDocument(doc);
-      }
+      void maybeAutoDetectOrcaLanguage(doc).then(() => {
+        if (doc.languageId === 'orca-input' || doc.fileName.toLowerCase().endsWith('.inp')) {
+          diagnostics.validateDocument(doc);
+        }
+      });
     }),
     vscode.workspace.onDidChangeTextDocument((e) => {
       if (
@@ -390,16 +432,18 @@ export function activate(context: vscode.ExtensionContext): void {
           clearTimeout(changeTimer);
         }
         changeTimer = setTimeout(() => {
-          diagnostics.validateDocument(e.document);
-          if (vscode.window.activeTextEditor?.document === e.document) {
-            parseCache.delete(e.document.uri.toString());
-            const parsed = getParsedForDocument(e.document);
-            outlineProvider.update(parsed);
-            summaryProvider.update(parsed);
-            if (parsed) {
-              OrcaViewerPanel.updateIfOpen(parsed);
+          void maybeAutoDetectOrcaLanguage(e.document).then(() => {
+            diagnostics.validateDocument(e.document);
+            if (vscode.window.activeTextEditor?.document === e.document) {
+              parseCache.delete(e.document.uri.toString());
+              const parsed = getParsedForDocument(e.document);
+              outlineProvider.update(parsed);
+              summaryProvider.update(parsed);
+              if (parsed) {
+                OrcaViewerPanel.updateIfOpen(enrichParsedWithSiblingHess(parsed));
+              }
             }
-          }
+          });
         }, 350);
       }
     }),
@@ -407,10 +451,11 @@ export function activate(context: vscode.ExtensionContext): void {
       parseCache.delete(doc.uri.toString());
       const parsed = getParsedForDocument(doc);
       if (parsed) {
-        OrcaViewerPanel.updateIfOpen(parsed);
+        const enriched = enrichParsedWithSiblingHess(parsed);
+        OrcaViewerPanel.updateIfOpen(enriched);
         if (vscode.window.activeTextEditor?.document === doc) {
-          outlineProvider.update(parsed);
-          summaryProvider.update(parsed);
+          outlineProvider.update(enriched);
+          summaryProvider.update(enriched);
         }
       }
     }),
@@ -422,9 +467,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Initial inspect
   for (const doc of vscode.workspace.textDocuments) {
-    if (doc.languageId === 'orca-input' || doc.fileName.toLowerCase().endsWith('.inp')) {
-      diagnostics.validateDocument(doc);
-    }
+    void maybeAutoDetectOrcaLanguage(doc).then(() => {
+      if (doc.languageId === 'orca-input' || doc.fileName.toLowerCase().endsWith('.inp')) {
+        diagnostics.validateDocument(doc);
+      }
+    });
   }
   if (vscode.window.activeTextEditor) {
     void inspectActiveDocument(vscode.window.activeTextEditor.document);
