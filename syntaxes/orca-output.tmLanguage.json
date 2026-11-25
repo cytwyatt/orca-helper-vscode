@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "ORCA 6 Output",
+  "scopeName": "source.orca.output",
+  "patterns": [
+    {
+      "name": "markup.heading.success.orca-out",
+      "match": "^.*(\\*\\*\\*\\*ORCA TERMINATED NORMALLY\\*\\*\\*\\*|HURRAY|THE OPTIMIZATION HAS CONVERGED|SCF CONVERGED AFTER).*$"
+    },
+    {
+      "name": "invalid.illegal.error.orca-out",
+      "match": "^.*(ORCA finished by error termination|ABORTING THE RUN|Error\\s*:|ERROR|imaginary mode).*$"
+    },
+    {
+      "name": "markup.bold.energy.orca-out",
+      "match": "^.*(FINAL SINGLE POINT ENERGY|MP2 TOTAL ENERGY|Final Gibbs free energy|Total Enthalpy|Zero point energy|TOTAL SCF ENERGY).*$"
+    },
+    {
+      "name": "entity.name.section.orca-out",
+      "match": "^\\s*(GEOMETRY OPTIMIZATION CYCLE\\s+\\d+|CARTESIAN COORDINATES \\(ANGSTROEM\\)|ORBITAL ENERGIES|VIBRATIONAL FREQUENCIES|NORMAL MODES|IR SPECTRUM|THERMOCHEMISTRY AT.*|MULLIKEN ATOMIC CHARGES|LOEWDIN ATOMIC CHARGES|HIRSHFELD ANALYSIS|DIPOLE MOMENT|ABSORPTION SPECTRUM.*|TD-DFT/TDA EXCITED STATES.*)$"
+    },
+    {
+      "name": "string.unquoted.converged-yes.orca-out",
+      "match": "\\bYES\\b"
+    },
+    {
+      "name": "constant.language.converged-no.orca-out",
+      "match": "\\bNO\\b"
+    },
+    {
+      "name": "comment.line.separator.orca-out",
+      "match": "^\\s*[-=*]{10,}\\s*$"
+    },
+    {
+      "name": "constant.numeric.orca-out",
+      "match": "(?<![A-Za-z0-9_])[+-]?(?:\\d+\\.\\d+|\\d+)(?:[eEdD][+-]?\\d+)?(?![A-Za-z0-9_])"
+    }
+  ]
+}

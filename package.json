@@ -1,0 +1,292 @@
+{
+  "name": "orca-helper-vscode",
+  "displayName": "ORCA 6 Helper",
+  "description": "All-in-one VS Code extension for ORCA 6 quantum chemistry: syntax highlighting, completions, hover docs, diagnostics, output outline TOC, 3D molecular & trajectory visualization, convergence charts, vibrational animations, and IR/UV-Vis spectra.",
+  "version": "0.1.0",
+  "publisher": "cytwyatt",
+  "author": {
+    "name": "cytwyatt",
+    "url": "https://github.com/cytwyatt"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cytwyatt/orca-helper-vscode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cytwyatt/orca-helper-vscode/issues"
+  },
+  "homepage": "https://github.com/cytwyatt/orca-helper-vscode#readme",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Visualization",
+    "Linters",
+    "Snippets",
+    "Other"
+  ],
+  "keywords": [
+    "orca",
+    "orca6",
+    "quantum chemistry",
+    "computational chemistry",
+    "dft",
+    "xyz",
+    "trajectory",
+    "vibrational frequencies",
+    "3dmol"
+  ],
+  "icon": "media/icon.png",
+  "activationEvents": [
+    "onLanguage:orca-input",
+    "onLanguage:orca-output",
+    "onLanguage:orca-xyz",
+    "onLanguage:orca-hess",
+    "onLanguage:orca-engrad",
+    "onView:orcaHelper.outlineView",
+    "onView:orcaHelper.workspaceView",
+    "onCommand:orcaHelper.openViewer",
+    "onCommand:orcaHelper.validateInput",
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "orca-input",
+        "aliases": [
+          "ORCA Input",
+          "orca",
+          "ORCA 6 Input"
+        ],
+        "extensions": [
+          ".inp"
+        ],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "orca-output",
+        "aliases": [
+          "ORCA Output",
+          "ORCA 6 Output"
+        ],
+        "extensions": [
+          ".orcaout"
+        ]
+      },
+      {
+        "id": "orca-xyz",
+        "aliases": [
+          "XYZ Molecular Coordinates",
+          "xyz"
+        ],
+        "extensions": [
+          ".xyz"
+        ]
+      },
+      {
+        "id": "orca-hess",
+        "aliases": [
+          "ORCA Hessian"
+        ],
+        "extensions": [
+          ".hess"
+        ]
+      },
+      {
+        "id": "orca-engrad",
+        "aliases": [
+          "ORCA Energy/Gradient"
+        ],
+        "extensions": [
+          ".engrad"
+        ]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "orca-input",
+        "scopeName": "source.orca.input",
+        "path": "./syntaxes/orca-input.tmLanguage.json"
+      },
+      {
+        "language": "orca-output",
+        "scopeName": "source.orca.output",
+        "path": "./syntaxes/orca-output.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "orca-input",
+        "path": "./snippets/orca.json"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "orca-helper-sidebar",
+          "title": "ORCA 6 Helper",
+          "icon": "media/orca-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "orca-helper-sidebar": [
+        {
+          "id": "orcaHelper.outlineView",
+          "name": "ORCA Outline / TOC"
+        },
+        {
+          "id": "orcaHelper.summaryView",
+          "name": "Job Summary"
+        },
+        {
+          "id": "orcaHelper.workspaceView",
+          "name": "ORCA Workspace Files"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "orcaHelper.openViewer",
+        "title": "ORCA 6: Open 3D Structure & Analysis Viewer",
+        "icon": "$(preview)"
+      },
+      {
+        "command": "orcaHelper.openViewerFromExplorer",
+        "title": "ORCA 6: Open in 3D & Analysis Viewer",
+        "icon": "$(preview)"
+      },
+      {
+        "command": "orcaHelper.refreshOutline",
+        "title": "ORCA 6: Refresh Outline & Summary",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "orcaHelper.refreshWorkspace",
+        "title": "ORCA 6: Refresh Workspace Files",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "orcaHelper.validateInput",
+        "title": "ORCA 6: Validate Current Input File",
+        "icon": "$(check)"
+      },
+      {
+        "command": "orcaHelper.jumpToLine",
+        "title": "ORCA 6: Jump to Line"
+      },
+      {
+        "command": "orcaHelper.insertTemplate",
+        "title": "ORCA 6: Insert Calculation Template",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "orcaHelper.openRelatedFile",
+        "title": "ORCA 6: Switch Between Related Files (.inp / .out / _trj.xyz / .hess)",
+        "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "orcaHelper.copyGeometryAsOrca",
+        "title": "ORCA 6: Copy Final Geometry as * xyz Block"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "orcaHelper.openViewer",
+          "when": "orcaHelper.isSupportedFile",
+          "group": "navigation"
+        },
+        {
+          "command": "orcaHelper.openRelatedFile",
+          "when": "orcaHelper.isSupportedFile",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "orcaHelper.openViewerFromExplorer",
+          "when": "resourceExtname =~ /^\\.(inp|out|xyz|hess|engrad|log)$/i",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "orcaHelper.refreshOutline",
+          "when": "view == orcaHelper.outlineView || view == orcaHelper.summaryView",
+          "group": "navigation"
+        },
+        {
+          "command": "orcaHelper.openViewer",
+          "when": "view == orcaHelper.outlineView || view == orcaHelper.summaryView",
+          "group": "navigation"
+        },
+        {
+          "command": "orcaHelper.refreshWorkspace",
+          "when": "view == orcaHelper.workspaceView",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "ORCA 6 Helper",
+      "properties": {
+        "orcaHelper.autoDetectOutputLanguage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically apply ORCA Output syntax highlighting when opening a .out file that contains an ORCA header."
+        },
+        "orcaHelper.defaultRepresentation": {
+          "type": "string",
+          "enum": [
+            "ballstick",
+            "stick",
+            "sphere",
+            "line"
+          ],
+          "default": "ballstick",
+          "description": "Default 3D molecular representation in the viewer."
+        },
+        "orcaHelper.showGhostAtoms": {
+          "type": "boolean",
+          "default": true,
+          "description": "Display ghost atoms (e.g. BSSE counterpoise atoms) as translucent markers by default."
+        },
+        "orcaHelper.shortContactThreshold": {
+          "type": "number",
+          "default": 0.5,
+          "description": "Distance threshold (in Angstrom) below which overlapping atoms trigger a warning diagnostic in .inp files."
+        },
+        "orcaHelper.irBroadeningFwhm": {
+          "type": "number",
+          "default": 20,
+          "description": "Default Lorentzian FWHM broadening (cm^-1) for simulated IR spectra."
+        },
+        "orcaHelper.uvBroadeningEv": {
+          "type": "number",
+          "default": 0.3,
+          "description": "Default Gaussian broadening (eV) for simulated UV-Vis spectra."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/run-tests.mjs",
+    "package": "npm run compile && npx @vscode/vsce package --githubBranch main"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.32.0",
+    "3dmol": "^2.4.2",
+    "chart.js": "^4.4.7",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.2"
+  }
+}

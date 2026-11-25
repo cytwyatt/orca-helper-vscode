@@ -1,0 +1,141 @@
+{
+  "ORCA 6 Opt + Freq (DFT)": {
+    "prefix": "orca-opt-freq",
+    "body": [
+      "%pal nprocs ${1:16} end",
+      "%maxcore ${2:4000}",
+      "",
+      "! ${3|B3LYP,r2SCAN-3c,wB97X-D4,PBE0,wB97M-V,BHANDHLYP|} ${4|D3BJ,D4,|} ${5|def2-TZVP,def2-TZVPP,def2-SVP,def2-QZVP,|} ${6|TightOpt,VeryTightOpt,Opt|} ${7|TightSCF,VeryTightSCF|} ${8|DEFGRID2,DEFGRID3|} Freq",
+      "",
+      "* xyz ${9:0} ${10:1}",
+      "${0:# Paste Cartesian coordinates here}",
+      "*"
+    ],
+    "description": "ORCA 6 DFT geometry optimization + analytical frequency template"
+  },
+  "ORCA 6 Single Point (High-Level)": {
+    "prefix": "orca-sp",
+    "body": [
+      "%pal nprocs ${1:16} end",
+      "%maxcore ${2:6000}",
+      "",
+      "! ${3|DLPNO-CCSD(T),wB97M-V,BHANDHLYP,MP2,B3LYP|} ${4|def2-QZVPP,def2-TZVPP,aug-cc-pVTZ|} ${5|TightPNO,VeryTightSCF DEFGRID3,TightSCF|} SP",
+      "",
+      "%scf",
+      "  MaxIter ${6:300}",
+      "end",
+      "",
+      "* xyz ${7:0} ${8:1}",
+      "$0",
+      "*"
+    ],
+    "description": "ORCA 6 high-level single point energy template"
+  },
+  "ORCA 6 TD-DFT Excited States": {
+    "prefix": "orca-tddft",
+    "body": [
+      "%pal nprocs ${1:16} end",
+      "%maxcore ${2:4000}",
+      "",
+      "! ${3|CAM-B3LYP,wB97X-D4,PBE0,B3LYP|} ${4|def2-TZVP,def2-TZVPD,ma-def2-TZVP|} TightSCF CPCM(${5:Water})",
+      "",
+      "%tddft",
+      "  NRoots ${6:15}",
+      "  TDA ${7|false,true|}",
+      "  Triplets ${8|false,true|}",
+      "  DoNTO ${9|false,true|}",
+      "end",
+      "",
+      "* xyzfile ${10:0} ${11:1} ${12:structure.xyz}",
+      "$0"
+    ],
+    "description": "ORCA 6 TD-DFT absorption / excited state calculation"
+  },
+  "ORCA 6 Transition State (OptTS)": {
+    "prefix": "orca-optts",
+    "body": [
+      "%pal nprocs ${1:16} end",
+      "%maxcore ${2:4000}",
+      "",
+      "! ${3|wB97X-D4,r2SCAN-3c,B3LYP D3BJ|} ${4|def2-TZVP,|} OptTS Freq TightSCF",
+      "",
+      "%geom",
+      "  Calc_Hess true",
+      "  Recalc_Hess ${5:10}",
+      "  MaxIter ${6:150}",
+      "end",
+      "",
+      "* xyz ${7:0} ${8:1}",
+      "$0",
+      "*"
+    ],
+    "description": "ORCA 6 transition state optimization with initial Hessian"
+  },
+  "ORCA 6 GOAT Conformational Search": {
+    "prefix": "orca-goat",
+    "body": [
+      "%pal nprocs ${1:16} end",
+      "%maxcore ${2:2000}",
+      "",
+      "! ${3|XTB2,GFN2-XTB,r2SCAN-3c|} ${4|GOAT,GOAT-REACT,GOAT-EXPLORE|} ${5|ALPB(Water),|}",
+      "",
+      "%goat",
+      "  MaxOptIter ${6:500}",
+      "end",
+      "",
+      "* xyzfile ${7:0} ${8:1} ${9:input.xyz}",
+      "$0"
+    ],
+    "description": "ORCA 6 GOAT global optimization / conformer search"
+  },
+  "ORCA 6 Relaxed Surface Scan": {
+    "prefix": "orca-scan",
+    "body": [
+      "%pal nprocs ${1:16} end",
+      "%maxcore ${2:4000}",
+      "",
+      "! ${3|B3LYP D3BJ,wB97X-D4,r2SCAN-3c|} ${4|def2-TZVP,|} Opt TightSCF",
+      "",
+      "%geom",
+      "  Scan",
+      "    ${5|B,A,D|} ${6:0 1} = ${7:1.5}, ${8:3.5}, ${9:21}",
+      "  end",
+      "end",
+      "",
+      "* xyz ${10:0} ${11:1}",
+      "$0",
+      "*"
+    ],
+    "description": "ORCA 6 relaxed potential energy surface scan"
+  },
+  "ORCA 6 NEB-TS Reaction Path": {
+    "prefix": "orca-neb",
+    "body": [
+      "%pal nprocs ${1:16} end",
+      "%maxcore ${2:4000}",
+      "",
+      "! ${3|r2SCAN-3c,wB97X-D4 def2-TZVP|} ${4|NEB-TS,ZOOM-NEB-TS,NEB-CI|} Freq",
+      "",
+      "%neb",
+      "  NEB_End_XYZFile \"${5:product.xyz}\"",
+      "  NImages ${6:8}",
+      "  PreOpt_Ends ${7|true,false|}",
+      "end",
+      "",
+      "* xyzfile ${8:0} ${9:1} ${10:reactant.xyz}",
+      "$0"
+    ],
+    "description": "ORCA 6 Nudged Elastic Band transition state search"
+  },
+  "ORCA 6 Custom Basis / ECP Block": {
+    "prefix": "orca-basis-ecp",
+    "body": [
+      "%basis",
+      "  NewGTO ${1:I} \"${2:aug-cc-pVDZ-PP}\" end",
+      "  NewECP ${1:I} \"${3:SK-MCDHF-RSC}\" end",
+      "end",
+      "$0"
+    ],
+    "description": "ORCA 6 %basis block with per-element GTO and ECP"
+  }
+}
