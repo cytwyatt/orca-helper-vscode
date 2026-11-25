@@ -1,0 +1,7 @@
+# Minimal H2 single-point input
+! HF def2-SVP TightSCF
+
+* xyz 0 1
+H  0.000000  0.000000  0.000000
+H  0.000000  0.000000  0.740000
+*

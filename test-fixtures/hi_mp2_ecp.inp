@@ -1,0 +1,14 @@
+%pal nprocs 8 end
+%maxcore 4000
+
+! MP2 aug-cc-pVDZ VeryTightOpt VeryTightSCF DEFGRID3 NumFreq
+
+%basis
+  NewGTO I "aug-cc-pVDZ-PP" end
+  NewECP I "SK-MCDHF-RSC" end
+end
+
+* xyz 0 1
+  I    0.000000   0.000000   0.000000
+  H    0.000000   0.000000   1.609000
+*

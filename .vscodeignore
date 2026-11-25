@@ -1,0 +1,16 @@
+.vscode/**
+.vscode-test/**
+.github/**
+.git/**
+src/**
+test/**
+test-fixtures/**
+scripts/**
+node_modules/**
+.gitignore
+AGENTS.md
+tsconfig.json
+dist/parsers-test-bundle.cjs
+**/*.ts
+**/*.map
+*.vsix

@@ -1,0 +1,208 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "ORCA 6 Input",
+  "scopeName": "source.orca.input",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#compoundJob" },
+    { "include": "#simpleInputLine" },
+    { "include": "#coordBlock" },
+    { "include": "#percentBlock" },
+    { "include": "#string" },
+    { "include": "#number" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.number-sign.orca",
+      "match": "#.*$"
+    },
+    "compoundJob": {
+      "name": "keyword.control.directive.orca",
+      "match": "(?i)^\\s*\\$new_job\\b"
+    },
+    "simpleInputLine": {
+      "name": "meta.simple-input.orca",
+      "begin": "^\\s*(!)",
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.simple-input.orca" }
+      },
+      "end": "$",
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#solvationKeyword" },
+        { "include": "#runTypeKeyword" },
+        { "include": "#methodKeyword" },
+        { "include": "#dispersionKeyword" },
+        { "include": "#basisKeyword" },
+        { "include": "#gridAndConvKeyword" },
+        { "include": "#string" },
+        { "include": "#number" }
+      ]
+    },
+    "solvationKeyword": {
+      "match": "(?i)\\b(CPCM|SMD|ALPB|DDX|DRACO)\\s*(\\()([^)]*)(\\))",
+      "captures": {
+        "1": { "name": "support.function.solvation.orca" },
+        "2": { "name": "punctuation.paren.open.orca" },
+        "3": { "name": "string.unquoted.solvent.orca" },
+        "4": { "name": "punctuation.paren.close.orca" }
+      }
+    },
+    "runTypeKeyword": {
+      "name": "keyword.control.runtype.orca",
+      "match": "(?i)\\b(SP|ENGRAD|OPT|COPT|GDIIS-OPT|LOOSEOPT|NORMALOPT|TIGHTOPT|VERYTIGHTOPT|OPTTS|FREQ|ANFREQ|NUMFREQ|NEARIR|NEB|NEB-TS|NEB-CI|ZOOM-NEB|ZOOM-NEB-TS|FAST-NEB-TS|IRC|GOAT|GOAT-REACT|GOAT-EXPLORE|GOAT-DIVERSITY|GOAT-ENTROPY|GOAT-COARSE|MD|SCAN|NMR|EPR|NBO|AIM|DOCKER|SOLVATOR|ESD|VPT2)\\b"
+    },
+    "methodKeyword": {
+      "name": "entity.name.function.method.orca",
+      "match": "(?i)(?<![A-Za-z0-9_-])(HF|RHF|UHF|ROHF|RKS|UKS|ROKS|HF-3c|PBEh-3c|B97-3c|r2SCAN-3c|wB97X-3c|B3LYP|B3LYP/G|BHANDHLYP|BHLYP|PBE0|PBE|BP86|BLYP|TPSS|TPSSh|TPSS0|r2SCAN|r2SCAN0|r2SCANh|SCANfunc|M06|M062X|M06L|MN15|MN15L|CAM-B3LYP|LC-BLYP|LC-PBE|wB97|wB97X|wB97X-D3|wB97X-D3BJ|wB97X-D4|wB97X-V|wB97M-V|wB97M-D3BJ|wB97M-D4|B97M-V|B97M-D3BJ|B97M-D4|PW6B95|B2PLYP|B2GP-PLYP|mPW2PLYP|DSD-PBEP86|DSD-BLYP|revDSD-PBEP86-D4|PWPB95|MP2|RI-MP2|SCS-MP2|OO-RI-MP2|DLPNO-MP2|DLPNO-SCS-MP2|MP2-F12|CCSD|CCSD\\(T\\)|DLPNO-CCSD|DLPNO-CCSD\\(T\\)|DLPNO-CCSD\\(T1\\)|CCSD\\(T\\)-F12|EOM-CCSD|STEOM-CCSD|CASSCF|NEVPT2|SC-NEVPT2|FIC-NEVPT2|DLPNO-NEVPT2|CASPT2|MRCI|ICE-CI|CIS|TDA|TDDFT|TD-DFT|XTB|XTB0|XTB1|XTB2|GFN-XTB|GFN2-XTB|GFN0-XTB|GFN-FF|PM3|AM1|ZINDO/S|NATIVE-GFN2-XTB|NATIVE-GFN1-XTB)(?![A-Za-z0-9_-])"
+    },
+    "dispersionKeyword": {
+      "name": "constant.language.dispersion.orca",
+      "match": "(?i)\\b(D3BJ|D3ZERO|D3|D4|NL|SCNL|ABC|GCP\\([^)]*\\))\\b"
+    },
+    "basisKeyword": {
+      "name": "entity.name.type.basis.orca",
+      "match": "(?i)(?<![A-Za-z0-9_-])((?:ma-|ZORA-|DKH-|x2c-|SARC-)?def2-(?:m?SVP|SV\\(P\\)|TZVP|TZVPP|TZVPD|TZVPPD|QZVP|QZVPP|QZVPD|QZVPPD)(?:/J|/C|/JK)?|(?:aug-|d-aug-)?cc-p(?:w?C)?V[DTQ56]Z(?:-PP|-DK|-F12)?(?:/C|/JK)?|pcseg-[0-4]|aug-pcseg-[0-4]|pcSseg-[0-4]|SARC-(?:ZORA|DKH)-TZVPP?|AutoAux|STO-3G|3-21G|6-31G(?:\\*\\*|\\*|\\(d,p\\)|\\(d\\))?|6-31\\+\\+?G(?:\\*\\*|\\*|\\(d,p\\)|\\(d\\))?|6-311\\+?\\+?G(?:\\*\\*|\\*|\\(d,p\\)|\\(2d,2p\\)|\\(d\\))?|LANL2DZ|SDD|min-STO-3G)(?![A-Za-z0-9_-])"
+    },
+    "gridAndConvKeyword": {
+      "name": "support.constant.option.orca",
+      "match": "(?i)\\b(DEFGRID1|DEFGRID2|DEFGRID3|LOOSESCF|NORMALSCF|SLOPPYSCF|STRONGSCF|TIGHTSCF|VERYTIGHTSCF|EXTREMESCF|RIJCOSX|RIJONX|RIJK|RI|NORI|NOCOSX|NOFROZENCORE|FROZENCORE|ZORA|DKH|DKH2|X2C|DLU-X2C|SOMF\\([^)]*\\)|SLOWCONV|VERYSLOWCONV|EASYCONV|KDIIS|DIIS|NODIIS|SOSCF|NOSOSCF|TRAH|NOTRAH|MOREAD|NOAUTOSTART|AUTOSTART|KEEPDENS|PRINTBASIS|PRINTMOS|LARGEPRINT|MINIPRINT|NORMALPRINT|SMALLPRINT|NOPOP|MULLIKEN|LOEWDIN|HIRSHFELD|CHELPG|MBIS|MAYER|NPA|UNO|UCO|USESYM|NOUSESYM|CPCM|SMD|ALPB|TIGHTPNO|NORMALPNO|LOOSEPNO|VERYTIGHTPNO|PAL[1-8]|XYZFILE|PDBFILE)\\b"
+    },
+    "coordBlock": {
+      "patterns": [
+        {
+          "name": "meta.coord.xyzfile.orca",
+          "match": "(?i)^\\s*(\\*\\s*(?:xyzfile|gzmtfile|intfile))\\s+([+-]?\\d+)\\s+(\\d+)\\s+(\\S+)",
+          "captures": {
+            "1": { "name": "keyword.control.coord.orca" },
+            "2": { "name": "constant.numeric.charge.orca" },
+            "3": { "name": "constant.numeric.multiplicity.orca" },
+            "4": { "name": "string.unquoted.filename.orca" }
+          }
+        },
+        {
+          "name": "meta.coord.block.orca",
+          "begin": "(?i)^\\s*(\\*\\s*(?:xyz|int|internal|gzmt))\\s+([+-]?\\d+)\\s+(\\d+)",
+          "beginCaptures": {
+            "1": { "name": "keyword.control.coord.orca" },
+            "2": { "name": "constant.numeric.charge.orca" },
+            "3": { "name": "constant.numeric.multiplicity.orca" }
+          },
+          "end": "^\\s*(\\*|end\\b)",
+          "endCaptures": {
+            "1": { "name": "keyword.control.coord.end.orca" }
+          },
+          "patterns": [
+            { "include": "#comment" },
+            {
+              "match": "^\\s*([A-Z][a-z]?)(\\s*:)?(\\(\\d+\\))?(?=\\s)",
+              "captures": {
+                "1": { "name": "entity.name.tag.element.orca" },
+                "2": { "name": "keyword.operator.ghost.orca" },
+                "3": { "name": "variable.parameter.fragment.orca" }
+              }
+            },
+            {
+              "name": "keyword.other.atom-override.orca",
+              "match": "(?i)\\b(NewGTO|NewECP|NewAuxJGTO|NewAuxCGTO|NewAuxJKGTO|end)\\b"
+            },
+            { "include": "#string" },
+            { "include": "#number" }
+          ]
+        }
+      ]
+    },
+    "percentBlock": {
+      "patterns": [
+        {
+          "name": "meta.block.singleline.orca",
+          "match": "(?i)^\\s*(%maxcore|%moinp|%base|%id)\\b\\s*(.*)$",
+          "captures": {
+            "1": { "name": "keyword.control.block.orca" },
+            "2": {
+              "patterns": [
+                { "include": "#comment" },
+                { "include": "#string" },
+                { "include": "#number" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "meta.block.inline.orca",
+          "match": "(?i)^\\s*(%[A-Za-z_][A-Za-z0-9_]*)\\b(.*?)\\b(end)\\b",
+          "captures": {
+            "1": { "name": "keyword.control.block.orca" },
+            "2": {
+              "patterns": [
+                { "include": "#blockBody" }
+              ]
+            },
+            "3": { "name": "keyword.control.block.end.orca" }
+          }
+        },
+        {
+          "name": "meta.block.multiline.orca",
+          "begin": "(?i)^\\s*(%[A-Za-z_][A-Za-z0-9_]*)\\b",
+          "beginCaptures": {
+            "1": { "name": "keyword.control.block.orca" }
+          },
+          "end": "(?i)^\\s*(end)\\b",
+          "endCaptures": {
+            "1": { "name": "keyword.control.block.end.orca" }
+          },
+          "patterns": [
+            { "include": "#nestedBlock" },
+            { "include": "#blockBody" }
+          ]
+        }
+      ]
+    },
+    "nestedBlock": {
+      "begin": "(?i)\\b(Constraints|Scan|Modify_Internal|Hybrid_Hess|NewGTO|NewECP|NewAuxJGTO|NewAuxCGTO|NewAuxJKGTO|GTO|ECP|Traj|Plot|MO|Cube)\\b",
+      "beginCaptures": {
+        "1": { "name": "support.type.subblock.orca" }
+      },
+      "end": "(?i)\\b(end)\\b",
+      "endCaptures": {
+        "1": { "name": "keyword.control.subblock.end.orca" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#string" },
+        { "include": "#number" },
+        {
+          "name": "constant.language.constraint.orca",
+          "match": "\\b[BADC]\\b"
+        }
+      ]
+    },
+    "blockBody": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#string" },
+        {
+          "name": "constant.language.boolean.orca",
+          "match": "(?i)\\b(true|false)\\b"
+        },
+        {
+          "name": "variable.parameter.orca",
+          "match": "(?i)^\\s*([A-Za-z_][A-Za-z0-9_]*)\\b"
+        },
+        { "include": "#number" }
+      ]
+    },
+    "string": {
+      "name": "string.quoted.double.orca",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.orca", "match": "\\\\." }
+      ]
+    },
+    "number": {
+      "name": "constant.numeric.orca",
+      "match": "(?<![A-Za-z0-9_])[+-]?(?:\\d+\\.\\d*|\\.\\d+|\\d+)(?:[eEdD][+-]?\\d+)?(?![A-Za-z0-9_])"
+    }
+  }
+}
